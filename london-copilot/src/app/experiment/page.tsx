@@ -11,6 +11,7 @@ import { buildPlaceFocusFromPin } from '@/components/london/placeFocus'
 import { adaptBackendResponse, extractParsed } from '@/lib/api/adaptBackendResponse'
 import { postQuery } from '@/lib/api/query'
 import { extractFocus } from '@/lib/ai/parseAnswer'
+import { geocodeAddress, housingQueryForAddress } from '@/lib/location/geocodeAddress'
 import { LED_BG_SOFT } from '@/components/london/londonTheme'
 import type { QueryPreferences } from '@contract/query.types'
 
@@ -60,6 +61,7 @@ export default function ExperimentPage() {
   const [loading, setLoading] = useState(false)
   const [chatError, setChatError] = useState<string | null>(null)
   const [selectedPlace, setSelectedPlace] = useState<PlaceFocus | null>(null)
+  const [pendingAddressFocus, setPendingAddressFocus] = useState<PlaceFocus | null>(null)
   const [selectedRouteLeg, setSelectedRouteLeg] = useState<number | null>(null)
   const { origin } = useIpLocation()
 
@@ -85,6 +87,7 @@ export default function ExperimentPage() {
 
   useEffect(() => {
     setSelectedPlace(null)
+    setPendingAddressFocus(null)
     setSelectedRouteLeg(null)
   }, [activeEntryId])
 
@@ -99,6 +102,7 @@ export default function ExperimentPage() {
         kind: 'property',
       })
     }
+    if (pendingAddressFocus) return pendingAddressFocus
     if (hasQueried && (loading || chatError)) {
       return {
         lat: origin.lat,
@@ -109,20 +113,35 @@ export default function ExperimentPage() {
       }
     }
     return null
-  }, [isRouting, selectedPlace, defaultFocus, hasQueried, loading, chatError, origin.city, origin.lat, origin.lng])
+  }, [isRouting, selectedPlace, defaultFocus, pendingAddressFocus, hasQueried, loading, chatError, origin.city, origin.lat, origin.lng])
 
   const handleSubmit = useCallback(
     async (query: string) => {
       setChatError(null)
       setLoading(true)
       setSelectedPlace(null)
+      setPendingAddressFocus(null)
       setSelectedRouteLeg(null)
       const entryId = appendEntry(query)
 
       try {
+        const resolvedAddress = await geocodeAddress(query)
+        if (resolvedAddress) {
+          setPendingAddressFocus({
+            lat: resolvedAddress.lat,
+            lng: resolvedAddress.lng,
+            label: resolvedAddress.label,
+            category: resolvedAddress.postcode ?? 'Resolved London address',
+            summary: resolvedAddress.fullAddress,
+            kind: 'property',
+          })
+        }
+
         const response = await postQuery({
-          query,
-          location: { lat: origin.lat, lng: origin.lng },
+          query: resolvedAddress ? housingQueryForAddress(query, resolvedAddress) : query,
+          location: resolvedAddress
+            ? { lat: resolvedAddress.lat, lng: resolvedAddress.lng }
+            : { lat: origin.lat, lng: origin.lng },
           preferences: inferRoutePreferences(query),
         })
         const enriched = adaptBackendResponse(response)

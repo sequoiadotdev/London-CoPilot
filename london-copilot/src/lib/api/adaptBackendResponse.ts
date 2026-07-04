@@ -200,8 +200,64 @@ function buildStatsGrid(scores: Score[], facts: HousingFacts | null): StatCell[]
       sub: 'within 500m',
     })
   }
+  if (facts?.stepFreeCount != null && facts.stationCount != null && facts.stationCount > 0) {
+    const score = Math.round((facts.stepFreeCount / facts.stationCount) * 10)
+    cells.push({
+      label: 'Accessibility',
+      value: `${score}/10`,
+      sub: `${facts.stepFreeCount}/${facts.stationCount} nearby stops step-free`,
+      score,
+      outOf: 10,
+    })
+  }
 
   return cells
+}
+
+function accessibilityScore(facts: HousingFacts | null, scores: Score[]): number | null {
+  const fromScore = scores.find(s => /access/i.test(s.label))?.value
+  if (fromScore != null) return fromScore
+
+  if (facts?.stepFreeCount == null || facts.stationCount == null || facts.stationCount <= 0) {
+    return null
+  }
+
+  return Math.max(1, Math.min(10, Math.round((facts.stepFreeCount / facts.stationCount) * 10)))
+}
+
+function withAccessibilityInsight(
+  insights: HousingInsight[],
+  facts: HousingFacts | null,
+  scores: Score[],
+): HousingInsight[] {
+  const score = accessibilityScore(facts, scores)
+  if (score == null) return insights
+
+  const summary =
+    facts?.stepFreeCount != null && facts.stationCount != null
+      ? `${facts.stepFreeCount} of ${facts.stationCount} nearby stations or stops are step-free. Good for wheelchair users, buggies, luggage, and avoiding stairs.`
+      : 'Nearby transport has accessibility information available.'
+
+  const existing = insights.find(insight => insight.id === 'accessibility')
+  if (existing) {
+    return insights.map(insight =>
+      insight.id === 'accessibility'
+        ? { ...insight, score: insight.score ?? score, outOf: insight.outOf ?? 10, summary: insight.summary || summary }
+        : insight,
+    )
+  }
+
+  return [
+    ...insights,
+    {
+      id: 'accessibility',
+      label: 'Accessibility',
+      emoji: '♿',
+      summary,
+      score,
+      outOf: 10,
+    },
+  ]
 }
 
 function buildWeatherAq(
@@ -402,9 +458,9 @@ function activityParsed(summary: string, data: ActivityData): ParsedAnswer {
 
 function enrichHousing(response: QueryResponse, data: HousingData): EnrichedAnswer {
   const { intent, status, summary, sources } = response
-  const insights = data.insights ?? []
   const facts = data.facts ?? null
   const scores = data.scores ?? []
+  const insights = withAccessibilityInsight(data.insights ?? [], facts, scores)
   const pins = data.pins ?? []
 
   let transport = buildTransportFromPins(pins, facts)
