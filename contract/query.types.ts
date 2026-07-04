@@ -10,11 +10,28 @@ export interface QueryLocation {
   lng: number;
 }
 
+export interface QueryPreferences {
+  /** Prefer TfL routes with step-free access to vehicles */
+  stepFree?: boolean;
+  /** Prefer routes that avoid known disruption where possible */
+  avoidDisruptions?: boolean;
+  /** Treat stairs as unavailable */
+  noStairs?: boolean;
+  /** Avoid routes likely to depend on failed lifts */
+  avoidLiftFailures?: boolean;
+  /** Prefer safer/well-lit walking legs for night routing */
+  safestWalking?: boolean;
+  /** Prefer cleaner-air walking legs when available */
+  lowestPollution?: boolean;
+}
+
 export interface QueryRequest {
   /** Free-text user query */
   query: string;
   /** User's current position (optional; improves routing & activity suggestions) */
   location?: QueryLocation;
+  /** Optional structured route preferences inferred by the UI or set by controls */
+  preferences?: QueryPreferences;
 }
 
 // ─── Response envelope (same for every intent) ───────────────────────────────

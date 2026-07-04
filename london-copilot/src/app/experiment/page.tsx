@@ -12,6 +12,7 @@ import { adaptBackendResponse, extractParsed } from '@/lib/api/adaptBackendRespo
 import { postQuery } from '@/lib/api/query'
 import { extractFocus } from '@/lib/ai/parseAnswer'
 import { LED_BG_SOFT } from '@/components/london/londonTheme'
+import type { QueryPreferences } from '@contract/query.types'
 
 const ExperimentMapBackground = dynamic(
   () => import('@/components/london/ExperimentMapBackground'),
@@ -28,6 +29,31 @@ const TITLE_ASCII_SETTINGS = {
   textFontSize: 200,
   planeBaseHeight: 10,
   asciiFontSize: 8,
+}
+
+function inferRoutePreferences(query: string): QueryPreferences | undefined {
+  const q = query.toLowerCase()
+  const preferences: QueryPreferences = {}
+
+  if (/step[-\s]?free|wheelchair|accessible|accessibility|no stairs|avoid stairs|lift access|lifts?/.test(q)) {
+    preferences.stepFree = true
+    preferences.noStairs = /no stairs|avoid stairs/.test(q)
+  }
+
+  if (/lift failure|lift failed|closed station|avoid disruption|avoid closed|reroute/.test(q)) {
+    preferences.avoidDisruptions = true
+    preferences.avoidLiftFailures = /lift failure|lift failed/.test(q)
+  }
+
+  if (/safe|safest|night|well[-\s]?lit/.test(q)) {
+    preferences.safestWalking = true
+  }
+
+  if (/pollution|clean air|low emission|air quality/.test(q)) {
+    preferences.lowestPollution = true
+  }
+
+  return Object.keys(preferences).length > 0 ? preferences : undefined
 }
 
 export default function ExperimentPage() {
@@ -97,6 +123,7 @@ export default function ExperimentPage() {
         const response = await postQuery({
           query,
           location: { lat: origin.lat, lng: origin.lng },
+          preferences: inferRoutePreferences(query),
         })
         const enriched = adaptBackendResponse(response)
         completeEntry(entryId, enriched)

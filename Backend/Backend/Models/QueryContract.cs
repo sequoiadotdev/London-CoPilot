@@ -2,7 +2,16 @@ namespace Backend.Models;
 
 public record QueryLocation(double Lat, double Lng);
 
-public record QueryRequest(string Query, QueryLocation? Location = null);
+public record QueryPreferences(
+    bool? StepFree = null,
+    bool? AvoidDisruptions = null,
+    bool? NoStairs = null,
+    bool? AvoidLiftFailures = null,
+    bool? SafestWalking = null,
+    bool? LowestPollution = null
+);
+
+public record QueryRequest(string Query, QueryLocation? Location = null, QueryPreferences? Preferences = null);
 
 public record Coordinates(double Lat, double Lng);
 

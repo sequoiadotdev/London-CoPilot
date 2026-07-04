@@ -269,11 +269,22 @@ public sealed partial class QueryOrchestrator(
         var originLat = request.Location?.Lat ?? 51.5308;
         var originLng = request.Location?.Lng ?? -0.1238;
         var originLabel = request.Location is not null ? "Current location" : "King's Cross area";
+        var preferences = ParseRoutingPreferences(request.Query, isReroute, request.Preferences);
 
-        // Default "home" destination — Paddington (in production: user-saved home)
-        var destLat = 51.5154;
-        var destLng = -0.1755;
-        var destLabel = "Home";
+        var destinationQuery = ExtractRoutingDestination(request.Query);
+        GeocodedLocation? destination = null;
+        DataSource? destinationSource = null;
+
+        if (!string.IsNullOrWhiteSpace(destinationQuery))
+        {
+            (destination, destinationSource) = await geocoding.ResolveAsync(destinationQuery, ct);
+            sources.Add(destinationSource);
+        }
+
+        // Demo fallback "home" destination — Paddington (in production: user-saved home).
+        var destLat = destination?.Lat ?? 51.5154;
+        var destLng = destination?.Lng ?? -0.1755;
+        var destLabel = destination?.Label ?? (IsHomeRoute(request.Query) ? "Home — Paddington" : destinationQuery ?? "Home — Paddington");
 
         var (disruptions, disruptionSource) = await tfl.GetDisruptionsAsync(ct);
         sources.Add(disruptionSource);
@@ -292,34 +303,179 @@ public sealed partial class QueryOrchestrator(
         var (route, journeySource) = await tfl.PlanJourneyAsync(
             originLat, originLng, destLat, destLng,
             originLabel, destLabel,
-            stepFree: true, avoidDisruptions: true,
-            rerouteNotice, ct);
+            stepFree: preferences.StepFree, avoidDisruptions: preferences.AvoidDisruptions,
+            rerouteNotice,
+            preferences.Labels,
+            ct);
         sources.Add(journeySource);
 
         if (route is null)
         {
-            var fallback = isReroute ? MockResponses.RoutingRerouted : MockResponses.Routing;
-            return fallback with { Sources = sources.ToArray() };
+            if (destination is null && IsHomeRoute(request.Query))
+            {
+                var fallback = isReroute ? MockResponses.RoutingRerouted : MockResponses.Routing;
+                return fallback with { Sources = sources.ToArray() };
+            }
+
+            route = BuildFallbackRoute(
+                originLat, originLng, originLabel,
+                destLat, destLng, destLabel,
+                rerouteNotice,
+                preferences.Labels);
         }
 
         var facts = new
         {
             journeyDurationMinutes = route.DurationMinutes,
             durationMinutes = route.DurationMinutes,
+            destination = destLabel,
             route.Steps,
             disruptions,
-            rerouteNotice
+            rerouteNotice,
+            preferences = preferences.Labels
         };
         var summary = await llm.SummarizeAsync("routing", facts, ct);
 
         return new QueryResponse(
             Intent: "routing",
-            Status: "complete",
+            Status: journeySource.Status == "ok" ? "complete" : "partial",
             Summary: summary,
             Data: route with { Disruptions = disruptions.ToArray() },
             Sources: sources.ToArray()
         );
     }
+
+    private static RoutingData BuildFallbackRoute(
+        double originLat,
+        double originLng,
+        string originLabel,
+        double destLat,
+        double destLng,
+        string destLabel,
+        string? rerouteNotice,
+        string[] preferencesApplied)
+    {
+        var distanceMeters = HaversineMeters(originLat, originLng, destLat, destLng);
+        var walkMinutes = Math.Max(5, (int)Math.Round(distanceMeters / 80.0));
+
+        return new RoutingData(
+            Type: "routing",
+            Origin: new RoutingEndpoint(originLat, originLng, originLabel),
+            Destination: new RoutingEndpoint(destLat, destLng, destLabel),
+            DurationMinutes: walkMinutes,
+            DistanceMeters: distanceMeters,
+            Polyline: [[originLat, originLng], [destLat, destLng]],
+            Steps:
+            [
+                new RouteStep(
+                    Instruction: $"Head towards {ShortPlaceLabel(destLabel)}",
+                    Mode: "walk",
+                    DurationMinutes: walkMinutes,
+                    From: originLabel,
+                    To: ShortPlaceLabel(destLabel),
+                    FromCoords: new Coordinates(originLat, originLng),
+                    ToCoords: new Coordinates(destLat, destLng),
+                    DetailedInstruction: "TfL journey planning is unavailable, so London Copilot is showing the destination on the map with a fallback walking geometry.")
+            ],
+            PreferencesApplied: [.. preferencesApplied, "destination geocoded", "fallback route"],
+            RerouteNotice: rerouteNotice
+        );
+    }
+
+    private sealed record RoutingPreferences(
+        bool StepFree,
+        bool AvoidDisruptions,
+        bool SafestWalking,
+        bool LowestPollution,
+        string[] Labels);
+
+    private static RoutingPreferences ParseRoutingPreferences(
+        string query,
+        bool isReroute,
+        QueryPreferences? structuredPreferences)
+    {
+        var q = query.ToLowerInvariant();
+        var structuredStepFree =
+            structuredPreferences?.StepFree == true ||
+            structuredPreferences?.NoStairs == true ||
+            structuredPreferences?.AvoidLiftFailures == true;
+
+        var stepFree =
+            structuredStepFree ||
+            q.Contains("step-free") ||
+            q.Contains("step free") ||
+            q.Contains("wheelchair") ||
+            q.Contains("accessible") ||
+            q.Contains("accessibility") ||
+            q.Contains("no stairs") ||
+            q.Contains("avoid stairs") ||
+            q.Contains("lift access") ||
+            q.Contains("lifts");
+
+        var avoidDisruptions =
+            structuredPreferences?.AvoidDisruptions == true ||
+            structuredPreferences?.AvoidLiftFailures == true ||
+            isReroute ||
+            q.Contains("avoid disruption") ||
+            q.Contains("avoid closed") ||
+            q.Contains("closed station") ||
+            q.Contains("lift failure") ||
+            q.Contains("lift failed") ||
+            q.Contains("reroute");
+
+        var safestWalking =
+            structuredPreferences?.SafestWalking == true ||
+            q.Contains("safe") ||
+            q.Contains("safest") ||
+            q.Contains("night") ||
+            q.Contains("well-lit") ||
+            q.Contains("well lit");
+
+        var lowestPollution =
+            structuredPreferences?.LowestPollution == true ||
+            q.Contains("pollution") ||
+            q.Contains("clean air") ||
+            q.Contains("low emission") ||
+            q.Contains("air quality");
+
+        // For the demo, default route planning is still accessibility-aware.
+        if (!stepFree && !q.Contains("fastest") && !q.Contains("quickest"))
+            stepFree = true;
+
+        var labels = new List<string>();
+        if (stepFree) labels.Add("step-free");
+        if (avoidDisruptions) labels.Add("avoid disruptions");
+        if (safestWalking) labels.Add("safest walking route");
+        if (lowestPollution) labels.Add("lowest pollution route");
+
+        return new RoutingPreferences(
+            StepFree: stepFree,
+            AvoidDisruptions: avoidDisruptions,
+            SafestWalking: safestWalking,
+            LowestPollution: lowestPollution,
+            Labels: labels.ToArray());
+    }
+
+    private static int HaversineMeters(double lat1, double lng1, double lat2, double lng2)
+    {
+        const double radius = 6371000;
+        var dLat = DegreesToRadians(lat2 - lat1);
+        var dLng = DegreesToRadians(lng2 - lng1);
+        var rLat1 = DegreesToRadians(lat1);
+        var rLat2 = DegreesToRadians(lat2);
+
+        var a =
+            Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+            Math.Cos(rLat1) * Math.Cos(rLat2) *
+            Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
+
+        return (int)Math.Round(2 * radius * Math.Asin(Math.Sqrt(a)));
+    }
+
+    private static double DegreesToRadians(double degrees) => degrees * Math.PI / 180;
+
+    private static string ShortPlaceLabel(string label) =>
+        label.Split(',')[0].Trim() is { Length: > 0 } shortLabel ? shortLabel : label;
 
     private async Task<QueryResponse> HandleActivityAsync(QueryRequest request, CancellationToken ct)
     {
@@ -374,6 +530,55 @@ public sealed partial class QueryOrchestrator(
         if (q.Contains("market")) return "market";
         if (q.Contains("shop") || q.Contains("shopping")) return "shop";
         return null;
+    }
+
+    private static bool IsHomeRoute(string query)
+    {
+        var q = query.ToLowerInvariant();
+        return q.Contains("home") || q.Contains("my place") || q.Contains("my flat") || q.Contains("my apartment");
+    }
+
+    private static string? ExtractRoutingDestination(string query)
+    {
+        var q = query.Trim().TrimEnd('.', '?', '!').Trim();
+        if (q.Length == 0 || IsHomeRoute(q)) return null;
+
+        var patterns = new[]
+        {
+            @"\b(?:get|take|bring|navigate|route|guide|send)\s+me\s+(?:to|towards|near)\s+(.+)$",
+            @"\b(?:directions?|route|journey)\s+(?:to|towards|near)\s+(.+)$",
+            @"\b(?:go|get|travel|navigate)\s+(?:to|towards|near)\s+(.+)$",
+            @"\bto\s+(.+)$"
+        };
+
+        foreach (var pattern in patterns)
+        {
+            var match = Regex.Match(q, pattern, RegexOptions.IgnoreCase);
+            if (!match.Success) continue;
+
+            var destination = CleanRoutingDestination(match.Groups[1].Value);
+            if (destination.Length >= 2)
+                return destination;
+        }
+
+        return null;
+    }
+
+    private static string CleanRoutingDestination(string destination)
+    {
+        var cleaned = destination.Trim();
+
+        var cutAt = Regex.Match(
+            cleaned,
+            @"\b(?:from|leaving from|starting from|using|via|by|with|avoiding|avoid|step[-\s]?free|safest|quickest|fastest|tonight|now)\b",
+            RegexOptions.IgnoreCase);
+        if (cutAt.Success)
+            cleaned = cleaned[..cutAt.Index].Trim();
+
+        cleaned = Regex.Replace(cleaned, @"^(?:the|a|an)\s+", "", RegexOptions.IgnoreCase).Trim();
+        cleaned = cleaned.Trim(',', '.', '?', '!', ';', ':', '"', '\'').Trim();
+
+        return cleaned;
     }
 
     private static double? ParseHours(string query)

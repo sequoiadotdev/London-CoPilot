@@ -9,8 +9,18 @@ public static class IntentDetector
         if (q.Contains("lift") || q.Contains("failed") || q.Contains("disruption") || q.Contains("reroute"))
             return "routing-reroute";
 
-        if (q.Contains("home") || q.Contains("route") || q.Contains("get me") || q.Contains("journey"))
+        if (
+            q.Contains("home") ||
+            q.Contains("route") ||
+            q.Contains("get me") ||
+            q.Contains("take me") ||
+            q.Contains("navigate") ||
+            q.Contains("directions") ||
+            q.Contains("journey") ||
+            q.StartsWith("to "))
+        {
             return "routing";
+        }
 
         if (IsActivityQuery(q))
             return "activity";

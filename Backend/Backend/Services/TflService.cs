@@ -126,6 +126,7 @@ public sealed class TflService(IHttpClientFactory httpFactory, ApiSettings setti
         string? fromLabel, string? toLabel,
         bool stepFree, bool avoidDisruptions,
         string? rerouteNotice,
+        string[]? preferenceLabels = null,
         CancellationToken ct = default)
     {
         if (!settings.HasTfl)
@@ -269,9 +270,10 @@ public sealed class TflService(IHttpClientFactory httpFactory, ApiSettings setti
                 polyline.Add([toLat, toLng]);
             }
 
-            var prefs = new List<string>();
+            var prefs = new List<string>(preferenceLabels ?? []);
             if (stepFree) prefs.Add("step-free");
             if (avoidDisruptions) prefs.Add("avoid disruptions");
+            prefs = prefs.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
             var route = new RoutingData(
                 Type: "routing",

@@ -529,6 +529,18 @@ function AnswerDetails({
         <>
           {answer.routing?.steps.length ? (
             <CollapsibleSection title="Journey legs" count={answer.routing.steps.length}>
+              {answer.routing.preferencesApplied?.length ? (
+                <div className="mb-3 flex flex-wrap gap-1.5 px-1">
+                  {answer.routing.preferencesApplied.map(preference => (
+                    <span
+                      key={preference}
+                      className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-white/55"
+                    >
+                      {preference}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               <p className="px-1 pb-2 text-[11px] text-white/35">
                 Tap a leg to highlight it on the map and see line, direction, and stops.
               </p>
