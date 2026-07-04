@@ -1,0 +1,24 @@
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# Secrets
+.env
+.env*.local
+*.key
+*.pem
+secrets.json
+
+# Nested build artifacts (belt-and-braces if subfolder gitignores are missed)
+**/node_modules/
+**/.next/
+**/bin/
+**/obj/

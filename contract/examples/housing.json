@@ -1,0 +1,27 @@
+{
+  "intent": "housing",
+  "status": "partial",
+  "summary": "14 Clerkenwell Road is a solid choice for young professionals — excellent transport links and a vibrant neighbourhood, though street noise and limited green space are worth considering.",
+  "data": {
+    "type": "housing",
+    "address": "14 Clerkenwell Road, London EC1M 5RF",
+    "coordinates": { "lat": 51.5203, "lng": -0.1089 },
+    "scores": [
+      { "label": "Transport", "value": 9.1, "outOf": 10 },
+      { "label": "Safety", "value": 7.4, "outOf": 10 },
+      { "label": "Amenities", "value": 8.6, "outOf": 10 },
+      { "label": "Affordability", "value": 5.2, "outOf": 10 },
+      { "label": "Green space", "value": 4.8, "outOf": 10 }
+    ],
+    "pins": [
+      { "lat": 51.5203, "lng": -0.1089, "label": "14 Clerkenwell Road", "kind": "property" },
+      { "lat": 51.5198, "lng": -0.1056, "label": "Farringdon", "kind": "transit" },
+      { "lat": 51.5211, "lng": -0.1123, "label": "Exmouth Market", "kind": "poi" }
+    ]
+  },
+  "sources": [
+    { "id": "postcodes-io", "name": "Postcodes.io", "status": "ok" },
+    { "id": "tfl", "name": "TfL Journey Planner", "status": "ok" },
+    { "id": "police-uk", "name": "Police.uk Crime Data", "status": "error", "error": "Rate limit exceeded — crime scores omitted" }
+  ]
+}

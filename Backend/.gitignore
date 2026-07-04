@@ -1,0 +1,54 @@
+# Build outputs
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio / Rider
+.vs/
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+*.rsuser
+
+# NuGet
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Test / coverage
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.VisualState.xml
+TestResult.xml
+coverage*.json
+coverage*.xml
+*.coverage
+*.coveragexml
+
+# ASP.NET
+*.pubxml
+*.publishproj
+PublishScripts/
+appsettings.*.local.json
+secrets.json
+
+# User-specific launch settings overrides (keep launchSettings.json in repo)
+**/Properties/launchSettings.local.json
+
+# OS
+.DS_Store
+Thumbs.db

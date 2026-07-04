@@ -1,0 +1,39 @@
+{
+  "intent": "activity",
+  "status": "complete",
+  "summary": "Here's a relaxed 3-hour afternoon near Shoreditch: coffee, the Design Museum, and a canal-side stroll — all within walking distance, about £18 total.",
+  "data": {
+    "type": "activity",
+    "durationHours": 3,
+    "items": [
+      {
+        "name": "Ozone Coffee Roasters",
+        "startTime": "2026-07-04T14:00:00+01:00",
+        "endTime": "2026-07-04T14:45:00+01:00",
+        "costGBP": 4.5,
+        "category": "coffee",
+        "coordinates": { "lat": 51.5231, "lng": -0.0789 }
+      },
+      {
+        "name": "Design Museum",
+        "startTime": "2026-07-04T15:00:00+01:00",
+        "endTime": "2026-07-04T16:15:00+01:00",
+        "costGBP": 12.0,
+        "category": "museum",
+        "coordinates": { "lat": 51.4998, "lng": -0.1982 }
+      },
+      {
+        "name": "Regent's Canal walk",
+        "startTime": "2026-07-04T16:30:00+01:00",
+        "endTime": "2026-07-04T17:00:00+01:00",
+        "costGBP": 0,
+        "category": "outdoors",
+        "coordinates": { "lat": 51.5278, "lng": -0.0756 }
+      }
+    ]
+  },
+  "sources": [
+    { "id": "foursquare", "name": "Foursquare Places", "status": "ok" },
+    { "id": "opening-hours", "name": "Opening Hours API", "status": "ok" }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "intent": "routing",
+  "status": "complete",
+  "summary": "Fastest route home: 34 minutes via Circle line from King's Cross St Pancras to Paddington, then a 6-minute walk. No disruptions on your line.",
+  "data": {
+    "type": "routing",
+    "origin": { "lat": 51.5308, "lng": -0.1238, "label": "King's Cross St Pancras" },
+    "destination": { "lat": 51.5154, "lng": -0.1755, "label": "Home — Paddington" },
+    "durationMinutes": 34,
+    "distanceMeters": 6200,
+    "polyline": [
+      [51.5308, -0.1238],
+      [51.5289, -0.1312],
+      [51.5234, -0.1589],
+      [51.5189, -0.1698],
+      [51.5154, -0.1755]
+    ],
+    "steps": [
+      {
+        "instruction": "Walk to King's Cross St Pancras (Circle line)",
+        "mode": "walk",
+        "durationMinutes": 3,
+        "from": "Current location",
+        "to": "King's Cross St Pancras"
+      },
+      {
+        "instruction": "Circle line towards Hammersmith — 4 stops to Paddington",
+        "mode": "tube",
+        "durationMinutes": 14,
+        "from": "King's Cross St Pancras",
+        "to": "Paddington"
+      },
+      {
+        "instruction": "Walk to destination",
+        "mode": "walk",
+        "durationMinutes": 6,
+        "from": "Paddington",
+        "to": "Home — Paddington"
+      }
+    ]
+  },
+  "sources": [
+    { "id": "tfl", "name": "TfL Unified API", "status": "ok" },
+    { "id": "openstreetmap", "name": "OpenStreetMap", "status": "ok" }
+  ]
+}

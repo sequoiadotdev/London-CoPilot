@@ -1,0 +1,29 @@
+### POST /query
+
+@baseUrl = http://localhost:5220
+
+### Housing (default)
+POST {{baseUrl}}/query
+Content-Type: application/json
+
+{
+  "query": "Should I live at 14 Clerkenwell Road?"
+}
+
+### Routing
+POST {{baseUrl}}/query
+Content-Type: application/json
+
+{
+  "query": "Get me home",
+  "location": { "lat": 51.5308, "lng": -0.1238 }
+}
+
+### Activity
+POST {{baseUrl}}/query
+Content-Type: application/json
+
+{
+  "query": "I'm free for 3 hours",
+  "location": { "lat": 51.5231, "lng": -0.0789 }
+}
