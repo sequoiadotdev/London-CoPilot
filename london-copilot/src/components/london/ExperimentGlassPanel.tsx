@@ -486,7 +486,7 @@ function AnswerDetails({
 
   useEffect(() => {
     setExpandedSlot(answer.parsed.type === 'itinerary' ? 0 : null)
-    setSummaryExpanded(answer.parsed.type === 'itinerary')
+    setSummaryExpanded(false)
   }, [answer])
 
   return (
@@ -500,19 +500,17 @@ function AnswerDetails({
           <p
             className={cn(
               'text-sm leading-relaxed text-white/58',
-              !summaryExpanded && !isItinerary && 'line-clamp-3',
+              !summaryExpanded && 'line-clamp-3',
             )}
           >
             {answer.summary}
           </p>
-          {!isItinerary ? (
-            <p className="mt-2 flex items-center gap-1 text-[10px] text-[rgba(253,251,212,0.4)]">
-              <ChevronDown
-                className={cn('size-3 transition-transform', summaryExpanded && 'rotate-180')}
-              />
-              {summaryExpanded ? 'Show less' : 'Read more'}
-            </p>
-          ) : null}
+          <p className="mt-2 flex items-center gap-1 text-[10px] text-[rgba(253,251,212,0.4)]">
+            <ChevronDown
+              className={cn('size-3 transition-transform', summaryExpanded && 'rotate-180')}
+            />
+            {summaryExpanded ? 'Show less' : isItinerary ? 'Expand full answer' : 'Read more'}
+          </p>
         </button>
       ) : null}
 
