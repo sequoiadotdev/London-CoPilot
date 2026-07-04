@@ -3,7 +3,6 @@
 import type { RoutingData } from "@contract/query.types";
 import { useEffect } from "react";
 import RouteMapLayers from "@/components/london/RouteMapLayers";
-import TubeNetworkLayers from "@/components/london/TubeNetworkLayers";
 import { useRouteSegments } from "@/components/london/useRouteSegments";
 import { useMap } from "@/components/ui/map";
 import type { LngLat } from "@/lib/map/adapters";
@@ -139,10 +138,6 @@ export default function RoutingMapEffects({
 
 	return (
 		<>
-			<TubeNetworkLayers
-				routing={routing}
-				selectedLegIndex={selectedSegmentIndex}
-			/>
 			<RouteMapLayers
 				onSelectSegment={onSelectSegment}
 				routing={routing}

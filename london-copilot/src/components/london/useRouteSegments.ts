@@ -4,7 +4,6 @@ import type { RoutingData } from "@contract/query.types";
 import { useEffect, useState } from "react";
 import {
 	buildRouteSegments,
-	enrichRouteSegments,
 	type RouteSegment,
 } from "@/lib/map/routeSegments";
 
@@ -26,34 +25,9 @@ export function useRouteSegments(
 			return;
 		}
 
-		let cancelled = false;
 		const sync = buildRouteSegments(routing);
 		setSegments(sync);
-
-		const needsEnrichment = routing.steps.some(
-			(step) =>
-				!step.polyline?.length &&
-				(step.mode === "walk" ||
-					step.mode === "cycle" ||
-					step.mode === "bus"),
-		);
-
-		if (!needsEnrichment) {
-			setLoading(false);
-			return;
-		}
-
-		setLoading(true);
-		void enrichRouteSegments(routing).then((enriched) => {
-			if (!cancelled) {
-				setSegments(enriched);
-				setLoading(false);
-			}
-		});
-
-		return () => {
-			cancelled = true;
-		};
+		setLoading(false);
 	}, [routing]);
 
 	return { segments, loading };
