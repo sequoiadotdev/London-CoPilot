@@ -277,8 +277,18 @@ public sealed partial class QueryOrchestrator(
 
         if (!string.IsNullOrWhiteSpace(destinationQuery))
         {
-            (destination, destinationSource) = await geocoding.ResolveAsync(destinationQuery, ct);
-            sources.Add(destinationSource);
+            if (TryExtractStationSearch(destinationQuery, out var stationSearch, out var stationModeHint))
+            {
+                (destination, destinationSource) = await tfl.ResolveStationAsync(stationSearch, stationModeHint, ct);
+            }
+
+            if (destination is null)
+            {
+                (destination, destinationSource) = await geocoding.ResolveAsync(destinationQuery, ct);
+            }
+
+            if (destinationSource is not null)
+                sources.Add(destinationSource);
         }
 
         // Demo fallback "home" destination — Paddington (in production: user-saved home).
@@ -579,6 +589,40 @@ public sealed partial class QueryOrchestrator(
         cleaned = cleaned.Trim(',', '.', '?', '!', ';', ':', '"', '\'').Trim();
 
         return cleaned;
+    }
+
+    private static bool TryExtractStationSearch(
+        string destination,
+        out string searchTerm,
+        out string? modeHint)
+    {
+        var cleaned = destination.Trim();
+        modeHint = null;
+
+        var stationPattern = Regex.Match(
+            cleaned,
+            @"\b(?:(?<mode>train|rail|tube|underground|overground|dlr|elizabeth\s+line)\s+)?station\s+(?:in|near|at|around)\s+(?<place>.+)$",
+            RegexOptions.IgnoreCase);
+        if (stationPattern.Success)
+        {
+            modeHint = stationPattern.Groups["mode"].Success ? stationPattern.Groups["mode"].Value : null;
+            searchTerm = CleanRoutingDestination(stationPattern.Groups["place"].Value);
+            return searchTerm.Length >= 2;
+        }
+
+        var placeThenStation = Regex.Match(
+            cleaned,
+            @"^(?<place>.+?)\s+(?<mode>train|rail|tube|underground|overground|dlr|elizabeth\s+line)?\s*station$",
+            RegexOptions.IgnoreCase);
+        if (placeThenStation.Success)
+        {
+            modeHint = placeThenStation.Groups["mode"].Success ? placeThenStation.Groups["mode"].Value : null;
+            searchTerm = CleanRoutingDestination(placeThenStation.Groups["place"].Value);
+            return searchTerm.Length >= 2;
+        }
+
+        searchTerm = cleaned;
+        return false;
     }
 
     private static double? ParseHours(string query)

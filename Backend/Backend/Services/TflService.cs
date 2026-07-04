@@ -11,6 +11,62 @@ public sealed class TflService(IHttpClientFactory httpFactory, ApiSettings setti
             ? $"app_key={settings.TflAppKey}"
             : $"app_id={settings.TflAppId}&app_key={settings.TflAppKey}";
 
+    public async Task<(GeocodedLocation? Location, DataSource Source)> ResolveStationAsync(
+        string searchTerm,
+        string? modeHint = null,
+        CancellationToken ct = default)
+    {
+        if (!settings.HasTfl)
+            return (null, new DataSource("tfl-stoppoint", "TfL StopPoint Search", "error", "TfL keys not configured"));
+
+        var client = httpFactory.CreateClient("tfl");
+        try
+        {
+            var url = $"StopPoint/Search/{Uri.EscapeDataString(searchTerm)}?maxResults=12&{AuthSuffix}";
+            var res = await client.GetAsync(url, ct);
+            if (!res.IsSuccessStatusCode)
+                return (null, new DataSource("tfl-stoppoint", "TfL StopPoint Search", "error", $"HTTP {(int)res.StatusCode}"));
+
+            using var doc = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+            if (!doc.RootElement.TryGetProperty("matches", out var matches) || matches.GetArrayLength() == 0)
+                return (null, new DataSource("tfl-stoppoint", "TfL StopPoint Search", "error", "Station not found"));
+
+            JsonElement? best = null;
+            var bestScore = int.MinValue;
+
+            foreach (var match in matches.EnumerateArray())
+            {
+                if (!match.TryGetProperty("lat", out _) || !match.TryGetProperty("lon", out _))
+                    continue;
+
+                var name = TryGetString(match, "name") ?? "";
+                var modes = match.TryGetProperty("modes", out var modesElement)
+                    ? modesElement.EnumerateArray().Select(m => m.GetString() ?? "").ToArray()
+                    : [];
+
+                var score = ScoreStationMatch(name, modes, searchTerm, modeHint);
+                if (score > bestScore)
+                {
+                    best = match;
+                    bestScore = score;
+                }
+            }
+
+            if (best is null)
+                return (null, new DataSource("tfl-stoppoint", "TfL StopPoint Search", "error", "Station coordinates missing"));
+
+            var item = best.Value;
+            var label = TryGetString(item, "name") ?? searchTerm;
+            return (
+                new GeocodedLocation(label, item.GetProperty("lat").GetDouble(), item.GetProperty("lon").GetDouble()),
+                new DataSource("tfl-stoppoint", "TfL StopPoint Search", "ok"));
+        }
+        catch (Exception ex)
+        {
+            return (null, new DataSource("tfl-stoppoint", "TfL StopPoint Search", "error", ex.Message));
+        }
+    }
+
     public async Task<(double TransportScore, MapPin[] NearbyStations, int StepFreeCount, DataSource Source)> GetTransportAsync(
         double lat, double lng, CancellationToken ct = default)
     {
@@ -306,6 +362,32 @@ public sealed class TflService(IHttpClientFactory httpFactory, ApiSettings setti
         "cycle" => "cycle",
         _ => "walk"
     };
+
+    private static int ScoreStationMatch(string name, string[] modes, string searchTerm, string? modeHint)
+    {
+        var score = 0;
+        var lowerName = name.ToLowerInvariant();
+        var lowerSearch = searchTerm.ToLowerInvariant();
+        var lowerHint = modeHint?.ToLowerInvariant() ?? "";
+
+        if (lowerName.Contains(lowerSearch)) score += 8;
+        if (lowerName.Contains("station")) score += 3;
+        if (modes.Any(IsRailMode)) score += 4;
+        if (modes.Contains("bus")) score -= 5;
+
+        if ((lowerHint.Contains("train") || lowerHint.Contains("rail")) && modes.Contains("national-rail"))
+            score += 12;
+        if ((lowerHint.Contains("tube") || lowerHint.Contains("underground")) && modes.Contains("tube"))
+            score += 12;
+
+        if (lowerName.Contains("rail station")) score += lowerHint.Contains("train") || lowerHint.Contains("rail") ? 4 : 1;
+        if (lowerName.Contains("underground station")) score += lowerHint.Contains("tube") || lowerHint.Contains("underground") ? 4 : 1;
+
+        return score;
+    }
+
+    private static bool IsRailMode(string mode) =>
+        mode is "tube" or "national-rail" or "overground" or "dlr" or "elizabeth-line" or "tram";
 
     private static string? TryGetString(JsonElement element, string propertyName)
     {

@@ -14,9 +14,15 @@ public static class IntentDetector
             q.Contains("route") ||
             q.Contains("get me") ||
             q.Contains("take me") ||
+            q.Contains("go to") ||
+            q.Contains("go towards") ||
             q.Contains("navigate") ||
             q.Contains("directions") ||
             q.Contains("journey") ||
+            q.Contains("train station") ||
+            q.Contains("tube station") ||
+            q.Contains("rail station") ||
+            q.Contains("station in ") ||
             q.StartsWith("to "))
         {
             return "routing";
