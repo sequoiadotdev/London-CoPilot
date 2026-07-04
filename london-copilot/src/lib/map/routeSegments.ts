@@ -184,10 +184,6 @@ export function buildRouteSegments(data: RoutingData): RouteSegment[] {
 			if (fromPolyline) return segmentFromCoords(step, i, fromPolyline);
 
 			const ep = endpoints[i]!;
-			if (shouldUseOsrm(step.mode) || shouldUseRailGeometry(step.mode)) {
-				return null;
-			}
-
 			return segmentFromCoords(step, i, [ep.from, ep.to]);
 		})
 		.filter((s): s is RouteSegment => s !== null);
@@ -199,10 +195,7 @@ export async function enrichRouteSegments(
 ): Promise<RouteSegment[]> {
 	const split = splitPolylineBySteps(data.polyline, data.steps);
 	const endpoints = resolveStepEndpoints(data, split);
-	const segments: RouteSegment[] = [];
-
-	for (let i = 0; i < data.steps.length; i++) {
-		const step = data.steps[i]!;
+	const segments = await Promise.all(data.steps.map(async (step, i) => {
 		let coords = coordsForStepPolyline(step);
 
 		if (!coords) {
@@ -220,11 +213,10 @@ export async function enrichRouteSegments(
 			}
 		}
 
-		const seg = segmentFromCoords(step, i, coords);
-		if (seg) segments.push(seg);
-	}
+		return segmentFromCoords(step, i, coords);
+	}));
 
-	return segments;
+	return segments.filter((s): s is RouteSegment => s !== null);
 }
 
 export function allSegmentCoordinates(segments: RouteSegment[]): LngLat[] {

@@ -270,6 +270,8 @@ public sealed partial class QueryOrchestrator(
         var originLng = request.Location?.Lng ?? -0.1238;
         var originLabel = request.Location is not null ? "Current location" : "King's Cross area";
         var preferences = ParseRoutingPreferences(request.Query, isReroute, request.Preferences);
+        var preferRail = PrefersRail(request.Query, "");
+        var disruptionsTask = tfl.GetDisruptionsAsync(ct);
 
         var destinationQuery = ExtractRoutingDestination(request.Query);
         GeocodedLocation? destination = null;
@@ -280,6 +282,11 @@ public sealed partial class QueryOrchestrator(
             if (TryExtractStationSearch(destinationQuery, out var stationSearch, out var stationModeHint))
             {
                 (destination, destinationSource) = await tfl.ResolveStationAsync(stationSearch, stationModeHint, ct);
+            }
+
+            if (destination is null && preferRail)
+            {
+                (destination, destinationSource) = await tfl.ResolveStationAsync(destinationQuery, "train", ct);
             }
 
             if (destination is null)
@@ -295,8 +302,9 @@ public sealed partial class QueryOrchestrator(
         var destLat = destination?.Lat ?? 51.5154;
         var destLng = destination?.Lng ?? -0.1755;
         var destLabel = destination?.Label ?? (IsHomeRoute(request.Query) ? "Home — Paddington" : destinationQuery ?? "Home — Paddington");
+        preferRail = preferRail || PrefersRail(request.Query, destLabel);
 
-        var (disruptions, disruptionSource) = await tfl.GetDisruptionsAsync(ct);
+        var (disruptions, disruptionSource) = await disruptionsTask;
         sources.Add(disruptionSource);
 
         string? rerouteNotice = null;
@@ -314,6 +322,7 @@ public sealed partial class QueryOrchestrator(
             originLat, originLng, destLat, destLng,
             originLabel, destLabel,
             stepFree: preferences.StepFree, avoidDisruptions: preferences.AvoidDisruptions,
+            preferRail: preferRail,
             rerouteNotice,
             preferences.Labels,
             ct);
@@ -334,17 +343,9 @@ public sealed partial class QueryOrchestrator(
                 preferences.Labels);
         }
 
-        var facts = new
-        {
-            journeyDurationMinutes = route.DurationMinutes,
-            durationMinutes = route.DurationMinutes,
-            destination = destLabel,
-            route.Steps,
-            disruptions,
-            rerouteNotice,
-            preferences = preferences.Labels
-        };
-        var summary = await llm.SummarizeAsync("routing", facts, ct);
+        var summary = route.Steps.Any(s => s.Mode is "rail" or "tube")
+            ? $"Your {route.DurationMinutes}-minute rail-first route to {ShortPlaceLabel(destLabel)}"
+            : $"Your {route.DurationMinutes}-minute route to {ShortPlaceLabel(destLabel)}";
 
         return new QueryResponse(
             Intent: "routing",
@@ -448,10 +449,6 @@ public sealed partial class QueryOrchestrator(
             q.Contains("low emission") ||
             q.Contains("air quality");
 
-        // For the demo, default route planning is still accessibility-aware.
-        if (!stepFree && !q.Contains("fastest") && !q.Contains("quickest"))
-            stepFree = true;
-
         var labels = new List<string>();
         if (stepFree) labels.Add("step-free");
         if (avoidDisruptions) labels.Add("avoid disruptions");
@@ -546,6 +543,20 @@ public sealed partial class QueryOrchestrator(
     {
         var q = query.ToLowerInvariant();
         return q.Contains("home") || q.Contains("my place") || q.Contains("my flat") || q.Contains("my apartment");
+    }
+
+    private static bool PrefersRail(string query, string destinationLabel)
+    {
+        var q = $"{query} {destinationLabel}".ToLowerInvariant();
+        return q.Contains("train") ||
+               q.Contains("rail") ||
+               q.Contains("elizabeth") ||
+               q.Contains("overground") ||
+               q.Contains("tube") ||
+               q.Contains("station") ||
+               q.Contains("romford") ||
+               q.Contains("shenfield") ||
+               q.Contains("stratford");
     }
 
     private static string? ExtractRoutingDestination(string query)

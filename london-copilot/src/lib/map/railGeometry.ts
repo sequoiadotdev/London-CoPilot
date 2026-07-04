@@ -16,7 +16,12 @@ export async function fetchRailGeometry(
 	if (step.lineName) params.set("lineName", step.lineName);
 
 	try {
-		const res = await fetch(`/api/route/rail-geometry?${params.toString()}`);
+		const controller = new AbortController();
+		const timeout = window.setTimeout(() => controller.abort(), 2500);
+		const res = await fetch(`/api/route/rail-geometry?${params.toString()}`, {
+			signal: controller.signal,
+		});
+		window.clearTimeout(timeout);
 		if (!res.ok) return [from, to];
 
 		const data = (await res.json()) as { coordinates?: LngLat[] };

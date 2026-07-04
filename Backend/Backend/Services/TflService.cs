@@ -181,6 +181,7 @@ public sealed class TflService(IHttpClientFactory httpFactory, ApiSettings setti
         double toLat, double toLng,
         string? fromLabel, string? toLabel,
         bool stepFree, bool avoidDisruptions,
+        bool preferRail,
         string? rerouteNotice,
         string[]? preferenceLabels = null,
         CancellationToken ct = default)
@@ -194,7 +195,8 @@ public sealed class TflService(IHttpClientFactory httpFactory, ApiSettings setti
             var from = $"{fromLat},{fromLng}";
             var to = $"{toLat},{toLng}";
             var accessibility = stepFree ? "StepFreeToVehicle" : "NoRequirements";
-            var url = $"Journey/JourneyResults/{from}/to/{to}?mode=tube,bus,walking&walkingSpeed=Average&accessibilityPreference={accessibility}&{AuthSuffix}";
+            const string modes = "tube,bus,walking,national-rail,elizabeth-line,overground,dlr";
+            var url = $"Journey/JourneyResults/{from}/to/{to}?mode={modes}&walkingSpeed=Average&accessibilityPreference={accessibility}&{AuthSuffix}";
 
             var res = await client.GetAsync(url, ct);
             if (!res.IsSuccessStatusCode)
@@ -204,7 +206,7 @@ public sealed class TflService(IHttpClientFactory httpFactory, ApiSettings setti
             if (!doc.RootElement.TryGetProperty("journeys", out var journeys) || journeys.GetArrayLength() == 0)
                 return (null, new DataSource("tfl", "TfL Journey Planner", "error", "No routes found"));
 
-            var journey = journeys[0];
+            var journey = SelectJourney(journeys, preferRail);
             var duration = journey.GetProperty("duration").GetInt32();
             var startDateTime = TryGetString(journey, "startDateTime");
             var arrivalDateTime = TryGetString(journey, "arrivalDateTime");
@@ -357,7 +359,7 @@ public sealed class TflService(IHttpClientFactory httpFactory, ApiSettings setti
     {
         "tube" => "tube",
         "bus" => "bus",
-        "national-rail" or "overground" or "dlr" => "rail",
+        "national-rail" or "overground" or "dlr" or "elizabeth-line" => "rail",
         "walking" => "walk",
         "cycle" => "cycle",
         _ => "walk"
@@ -388,6 +390,46 @@ public sealed class TflService(IHttpClientFactory httpFactory, ApiSettings setti
 
     private static bool IsRailMode(string mode) =>
         mode is "tube" or "national-rail" or "overground" or "dlr" or "elizabeth-line" or "tram";
+
+    private static JsonElement SelectJourney(JsonElement journeys, bool preferRail)
+    {
+        var selected = journeys[0];
+        var bestScore = int.MinValue;
+
+        foreach (var journey in journeys.EnumerateArray())
+        {
+            var duration = journey.TryGetProperty("duration", out var durationEl)
+                ? durationEl.GetInt32()
+                : 999;
+            var score = -duration;
+
+            if (journey.TryGetProperty("legs", out var legs))
+            {
+                foreach (var leg in legs.EnumerateArray())
+                {
+                    var mode = leg.GetProperty("mode").GetProperty("id").GetString() ?? "";
+                    var legDuration = leg.TryGetProperty("duration", out var legDurationEl)
+                        ? legDurationEl.GetInt32()
+                        : 0;
+
+                    if (IsRailMode(mode))
+                        score += preferRail ? 260 + legDuration : 80;
+                    if (mode == "bus")
+                        score -= preferRail ? 140 + legDuration : 20;
+                    if (mode == "walking" && legDuration > 12)
+                        score -= legDuration;
+                }
+            }
+
+            if (score > bestScore)
+            {
+                selected = journey;
+                bestScore = score;
+            }
+        }
+
+        return selected;
+    }
 
     private static string? TryGetString(JsonElement element, string propertyName)
     {

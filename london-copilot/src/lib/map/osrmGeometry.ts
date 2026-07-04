@@ -16,7 +16,12 @@ export async function fetchOsrmGeometry(
   })
 
   try {
-    const res = await fetch(`/api/route/geometry?${params.toString()}`)
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 1800)
+    const res = await fetch(`/api/route/geometry?${params.toString()}`, {
+      signal: controller.signal,
+    })
+    window.clearTimeout(timeout)
     if (!res.ok) return [from, to]
 
     const data = (await res.json()) as { coordinates?: LngLat[] }
