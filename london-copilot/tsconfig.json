@@ -28,6 +28,7 @@
 		"baseUrl": ".",
 		"paths": {
 			"~/*": ["./src/*"],
+			"@/*": ["./src/*"],
 			"@contract/*": ["../contract/*"]
 		}
 	},
@@ -39,5 +40,5 @@
 		"**/*.js",
 		".next/types/**/*.ts"
 	],
-	"exclude": ["node_modules", "generated"]
+	"exclude": ["node_modules", "generated", "_zip-extract"]
 }
