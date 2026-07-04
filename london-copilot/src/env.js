@@ -8,7 +8,11 @@ export const env = createEnv({
 	 */
 	server: {
 		NODE_ENV: z.enum(["development", "test", "production"]),
-		OPENAI_API_KEY: z.string().min(1),
+		OPENAI_API_KEY: z.string().min(1).optional(),
+		GEMINI_API_KEY: z.string().min(1).optional(),
+		BACKEND_URL: z.string().url().optional(),
+		LOGO_DEV_TOKEN: z.string().min(1).optional(),
+		LOGO_DEV_PUBLISHABLE_KEY: z.string().min(1).optional(),
 	},
 
 	/**
@@ -28,6 +32,10 @@ export const env = createEnv({
 		NODE_ENV: process.env.NODE_ENV,
 		NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
 		OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+		LOGO_DEV_TOKEN: process.env.LOGO_DEV_TOKEN,
+		LOGO_DEV_PUBLISHABLE_KEY: process.env.LOGO_DEV_PUBLISHABLE_KEY,
+		GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+		BACKEND_URL: process.env.BACKEND_URL,
 	},
 	/**
 	 * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

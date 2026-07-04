@@ -1,0 +1,394 @@
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: true;
+}
+
+.formControl {
+  width: min(420px, 94vw);
+}
+
+.formControlEmbedded {
+  width: 100%;
+}
+
+.formControlEmbedded .inputShell {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.formControlEmbedded.formControlFocused .inputShell {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.inputBox {
+  position: relative;
+  border-radius: 9999px;
+  padding: 2px;
+  background: transparent;
+  --angle: 0deg;
+  --led: #fdfbd4;
+  --led-rgb: 253, 251, 212;
+  --input-h: 44px;
+  --input-font: 0.875rem;
+  --input-lh: 1.45;
+  --pad-x: 1.15em;
+  --pad-right: 0.5em;
+  --btn-size: 2rem;
+  --btn-gap: 0.4rem;
+  --pad-y: calc((var(--input-h) - var(--input-font) * var(--input-lh)) / 2);
+  filter: drop-shadow(0 0 18px rgba(253, 251, 212, 0.08));
+}
+
+.inputAura {
+  position: absolute;
+  inset: -8px;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 100% 80% at 50% 50%,
+    rgba(253, 251, 212, 0.14) 0%,
+    rgba(253, 251, 212, 0.04) 45%,
+    transparent 72%
+  );
+  animation: inputAuraPulse 3.5s ease-in-out infinite;
+}
+
+@keyframes inputAuraPulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+.inputBoxExpanded {
+  border-radius: 1.25rem;
+  --pad-y: 0.65em;
+  transition: border-radius 0.25s ease;
+}
+
+.borderBase {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.borderTrack {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+.borderTravelers {
+  opacity: 0.92;
+  filter: brightness(1);
+  transition: opacity 0.4s ease, filter 0.4s ease;
+  background: conic-gradient(
+    from var(--angle),
+    transparent 0deg 115deg,
+    rgba(var(--led-rgb), 0.1) 125deg,
+    rgba(var(--led-rgb), 0.3) 132deg,
+    rgba(var(--led-rgb), 0.55) 140deg,
+    rgba(var(--led-rgb), 0.8) 148deg,
+    var(--led) 154deg,
+    var(--led) 160deg,
+    transparent 168deg,
+    transparent 168deg 280deg,
+    rgba(var(--led-rgb), 0.1) 295deg,
+    rgba(var(--led-rgb), 0.35) 312deg,
+    rgba(var(--led-rgb), 0.7) 325deg,
+    var(--led) 334deg,
+    var(--led) 340deg,
+    transparent 348deg,
+    transparent 360deg
+  );
+}
+
+.borderRing {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  background: conic-gradient(
+    from 0deg,
+    rgba(var(--led-rgb), 0.38) 0deg,
+    rgba(var(--led-rgb), 0.52) 180deg,
+    rgba(var(--led-rgb), 0.38) 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+.formControl:hover:not(.formControlRing) .borderTravelers {
+  opacity: 1;
+  filter: brightness(1.08);
+}
+
+.formControl:hover:not(.formControlRing) .inputAura {
+  animation-duration: 2.4s;
+}
+
+.formControlRing .borderTravelers {
+  opacity: 0;
+}
+
+.formControlRing .borderRing {
+  opacity: 1;
+  filter: brightness(1.05);
+}
+
+.formControlWaiting .borderTravelers {
+  opacity: 0;
+}
+
+.formControlWaiting .borderWaiting {
+  opacity: 1;
+}
+
+.formControlWaiting .borderRing {
+  opacity: 0;
+}
+
+.borderWaiting {
+  opacity: 0;
+  filter: brightness(0.88);
+  transition: opacity 0.45s ease, filter 0.45s ease;
+  background: conic-gradient(
+    from var(--angle),
+    transparent 0deg 40deg,
+    rgba(var(--led-rgb), 0.08) 80deg,
+    rgba(var(--led-rgb), 0.35) 140deg,
+    rgba(var(--led-rgb), 0.55) 200deg,
+    rgba(var(--led-rgb), 0.35) 260deg,
+    rgba(var(--led-rgb), 0.08) 320deg,
+    transparent 360deg
+  );
+  animation: waitingBreath 3.2s ease-in-out infinite;
+}
+
+@keyframes waitingBreath {
+  0%,
+  100% {
+    opacity: 0.45;
+    filter: brightness(0.75);
+  }
+  50% {
+    opacity: 0.95;
+    filter: brightness(1);
+  }
+}
+
+.inputShell {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--btn-gap);
+  height: var(--input-h);
+  border-radius: inherit;
+  overflow: hidden;
+  padding: 0 0.35rem 0 0;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+}
+
+.formControlFocused .inputShell {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.inputBoxExpanded .inputShell {
+  align-items: flex-end;
+  height: auto;
+  min-height: var(--input-h);
+  padding-bottom: 0.35rem;
+}
+
+.inputArea {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.inputBoxExpanded .inputArea {
+  height: auto;
+  align-items: stretch;
+}
+
+.fieldPad {
+  box-sizing: border-box;
+  padding: var(--pad-y) var(--pad-right) var(--pad-y) var(--pad-x);
+  font-size: var(--input-font);
+  line-height: var(--input-lh);
+  font-family: inherit;
+}
+
+.measureMirror {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  width: 100%;
+}
+
+.typewriter {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.typewriterInner {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.typewriterText {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: rgba(255, 255, 255, 0.52);
+  font-weight: 400;
+}
+
+.cursor {
+  flex-shrink: 0;
+  display: inline-block;
+  width: 1px;
+  height: 0.95em;
+  margin-left: 1px;
+  background: rgba(255, 255, 255, 0.45);
+  animation: blink 1.05s step-end infinite;
+}
+
+.input {
+  position: relative;
+  z-index: 1;
+  display: block;
+  color: rgba(255, 255, 255, 0.82);
+  background: transparent;
+  width: 100%;
+  height: var(--input-h);
+  border: none;
+  border-radius: inherit;
+  resize: none;
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+
+.inputBoxExpanded .input {
+  height: auto;
+  min-height: var(--input-h);
+}
+
+.input:focus {
+  outline: none;
+}
+
+.inputGhost {
+  caret-color: transparent;
+  color: transparent;
+}
+
+.submit {
+  flex-shrink: 0;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--btn-size);
+  height: var(--btn-size);
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.72);
+  cursor: not-allowed;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 2px 8px rgba(0, 0, 0, 0.25);
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.inputBoxExpanded .submit {
+  align-self: flex-end;
+  margin-bottom: 0;
+}
+
+.submitActive {
+  background: #fff;
+  border-color: rgba(255, 255, 255, 0.95);
+  color: rgba(8, 8, 10, 0.95);
+  cursor: pointer;
+  box-shadow:
+    0 0 20px rgba(255, 255, 255, 0.35),
+    0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.submitActive:hover {
+  background: #fff;
+  box-shadow:
+    0 0 24px rgba(255, 255, 255, 0.45),
+    0 2px 12px rgba(0, 0, 0, 0.22);
+}
+
+.submitIcon {
+  width: 1rem;
+  height: 1rem;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}

@@ -36,7 +36,14 @@ export interface ItinerarySlot {
 
 export type ParsedAnswer =
   | { type: 'housing'; title: string; summary: string; areas: HousingArea[]; tip: string }
-  | { type: 'route'; title: string; summary: string; options: RouteOption[]; tip: string }
+  | {
+      type: 'route'
+      title: string
+      summary: string
+      focus?: { name: string; lng: number; lat: number }
+      options: RouteOption[]
+      tip: string
+    }
   | { type: 'itinerary'; title: string; summary: string; slots: ItinerarySlot[]; tip: string }
 
 interface AnswerCardProps {

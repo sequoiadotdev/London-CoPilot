@@ -1107,7 +1107,24 @@ type MapRouteProps = {
   onMouseLeave?: () => void;
   /** Whether the route is interactive - shows pointer cursor on hover (default: true) */
   interactive?: boolean;
+  /** Animate dashed lines (marching ants) — requires dashArray */
+  animatedDash?: boolean;
 };
+
+/** Marching-ants dash sequence for MapLibre line layers */
+function buildMarchingAntsSequence(
+  dash: number,
+  gap: number,
+): number[][] {
+  const total = dash + gap;
+  const steps = 8;
+  const sequence: number[][] = [];
+  for (let i = 0; i < steps; i++) {
+    const offset = (i / steps) * total;
+    sequence.push([offset, dash, gap]);
+  }
+  return sequence;
+}
 
 function MapRoute({
   id: propId,
@@ -1120,6 +1137,7 @@ function MapRoute({
   onMouseEnter,
   onMouseLeave,
   interactive = true,
+  animatedDash = false,
 }: MapRouteProps) {
   const { map, isLoaded } = useMap();
   const autoId = useId();
@@ -1180,12 +1198,41 @@ function MapRoute({
 
   useEffect(() => {
     if (!isLoaded || !map || !map.getLayer(layerId)) return;
+    if (animatedDash && dashArray) return;
 
     map.setPaintProperty(layerId, "line-color", color);
     map.setPaintProperty(layerId, "line-width", width);
     map.setPaintProperty(layerId, "line-opacity", opacity);
-    map.setPaintProperty(layerId, "line-dasharray", dashArray);
-  }, [isLoaded, map, layerId, color, width, opacity, dashArray]);
+    if (dashArray) {
+      map.setPaintProperty(layerId, "line-dasharray", dashArray);
+    }
+  }, [isLoaded, map, layerId, color, width, opacity, dashArray, animatedDash]);
+
+  useEffect(() => {
+    if (!isLoaded || !map || !map.getLayer(layerId) || !animatedDash || !dashArray) return;
+
+    const sequence = buildMarchingAntsSequence(dashArray[0], dashArray[1]);
+    let step = 0;
+    /** Gentle marching ants — ~10 steps/sec (100ms interval) */
+    const intervalMs = 100;
+
+    const tick = () => {
+      if (!map.getLayer(layerId)) return;
+      map.setPaintProperty(layerId, "line-color", color);
+      map.setPaintProperty(layerId, "line-width", width);
+      map.setPaintProperty(layerId, "line-opacity", opacity);
+      map.setPaintProperty(
+        layerId,
+        "line-dasharray",
+        sequence[step % sequence.length],
+      );
+      step++;
+    };
+
+    tick();
+    const timer = window.setInterval(tick, intervalMs);
+    return () => window.clearInterval(timer);
+  }, [isLoaded, map, layerId, color, width, opacity, dashArray, animatedDash]);
 
   // Handle click and hover events
   useEffect(() => {
