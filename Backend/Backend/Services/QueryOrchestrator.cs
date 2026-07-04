@@ -505,9 +505,10 @@ public sealed partial class QueryOrchestrator(
         if (items.Length == 0)
         {
             var fallback = MockResponses.Activity;
+            var fallbackData = (ActivityData)fallback.Data;
             return fallback with
             {
-                Summary = await llm.SummarizeAsync("activity", new { hours, budget, weatherDesc }, ct),
+                Summary = BuildActivitySummary(fallbackData.DurationHours, budget, weatherDesc, fallbackData.Items, fallbackData.TotalCostGBP),
                 Sources = [weatherSource, placesSource]
             };
         }
@@ -515,8 +516,7 @@ public sealed partial class QueryOrchestrator(
         var totalCost = items.Sum(i => i.CostGBP);
         var context = new ActivityContext(weatherDesc, locationLabel, budget, temp);
 
-        var facts = new { hours, budget, weatherDesc, temp, items = items.Select(i => new { i.Name, i.Category, i.CostGBP }), totalCost };
-        var summary = await llm.SummarizeAsync("activity", facts, ct);
+        var summary = BuildActivitySummary(hours, budget, weatherDesc, items, totalCost);
 
         return new QueryResponse(
             Intent: "activity",
@@ -525,6 +525,42 @@ public sealed partial class QueryOrchestrator(
             Data: new ActivityData("activity", hours, items, totalCost, context),
             Sources: sources.ToArray()
         );
+    }
+
+    private static string BuildActivitySummary(
+        double hours,
+        double? budget,
+        string? weatherDesc,
+        ActivityItem[] items,
+        double totalCost)
+    {
+        if (items.Length == 0)
+            return "I could not find enough nearby activities for that window yet. Try widening the budget, location, or activity type.";
+
+        var budgetText = budget is > 0 ? $" within your £{budget.Value:0} budget" : "";
+        var weatherText = string.IsNullOrWhiteSpace(weatherDesc) ? "" : $" Weather: {weatherDesc}.";
+        var intro = $"Here is a {hours:0.#}-hour plan{budgetText}: {string.Join(", ", items.Select(i => i.Name))}. Total estimated cost is £{totalCost:0}.";
+        var stops = items.Select((item, index) =>
+            $"{index + 1}. {FormatActivityTime(item.StartTime)} - {item.Name}: {item.Category}, {FormatActivityCost(item.CostGBP)}, planned for about {ActivityDurationMinutes(item)} minutes.");
+        var close = "Tap each card below for the stop details and use Show on map to focus it.";
+
+        return $"{intro}{weatherText} {string.Join(" ", stops)} {close}";
+    }
+
+    private static string FormatActivityCost(double cost) => cost > 0 ? $"£{cost:0}" : "free";
+
+    private static string FormatActivityTime(string isoTime) =>
+        DateTimeOffset.TryParse(isoTime, out var parsed) ? parsed.ToString("HH:mm") : "Next";
+
+    private static int ActivityDurationMinutes(ActivityItem item)
+    {
+        if (!DateTimeOffset.TryParse(item.StartTime, out var start) ||
+            !DateTimeOffset.TryParse(item.EndTime, out var end))
+        {
+            return 45;
+        }
+
+        return Math.Max(5, (int)Math.Round((end - start).TotalMinutes));
     }
 
     private static string? ExtractActivitySearchTerm(string query)
