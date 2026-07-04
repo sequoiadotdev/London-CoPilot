@@ -5,7 +5,6 @@ import type {
 } from "@contract/query.types";
 import { type LngLat, polylineToLngLat, toLngLat } from "@/lib/map/adapters";
 import { fetchOsrmGeometry, type OsrmProfile } from "@/lib/map/osrmGeometry";
-import { fetchRailGeometry } from "@/lib/map/railGeometry";
 import {
 	parseRouteStepMeta,
 	type RouteStepMeta,
@@ -46,8 +45,42 @@ function shouldUseOsrm(mode: RouteStep["mode"]): boolean {
 	return mode === "walk" || mode === "cycle" || mode === "bus";
 }
 
-function shouldUseRailGeometry(mode: RouteStep["mode"]): boolean {
-	return mode === "tube" || mode === "rail";
+const MAX_ENRICHED_DISTANCE_MULTIPLIER = 3.5;
+const MAX_ENRICHED_SEGMENT_METERS = 40_000;
+
+function distanceMeters(a: LngLat, b: LngLat): number {
+	const radius = 6_371_000;
+	const toRad = (value: number) => (value * Math.PI) / 180;
+	const dLat = toRad(b[1] - a[1]);
+	const dLng = toRad(b[0] - a[0]);
+	const lat1 = toRad(a[1]);
+	const lat2 = toRad(b[1]);
+	const h =
+		Math.sin(dLat / 2) ** 2 +
+		Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+	return 2 * radius * Math.asin(Math.sqrt(h));
+}
+
+function pathDistanceMeters(coords: LngLat[]): number {
+	let total = 0;
+	for (let i = 1; i < coords.length; i++) {
+		total += distanceMeters(coords[i - 1]!, coords[i]!);
+	}
+	return total;
+}
+
+function saneEnrichedGeometry(coords: LngLat[], from: LngLat, to: LngLat): boolean {
+	if (coords.length < 2) return false;
+
+	const direct = Math.max(1, distanceMeters(from, to));
+	const path = pathDistanceMeters(coords);
+	if (path > MAX_ENRICHED_SEGMENT_METERS) return false;
+	if (path > direct * MAX_ENRICHED_DISTANCE_MULTIPLIER) return false;
+
+	const first = coords[0]!;
+	const last = coords[coords.length - 1]!;
+	return distanceMeters(first, from) <= Math.max(350, direct * 0.2) &&
+		distanceMeters(last, to) <= Math.max(350, direct * 0.2);
 }
 
 /** Legacy proportional split — last resort when no step geometry exists */
@@ -201,13 +234,14 @@ export async function enrichRouteSegments(
 		if (!coords) {
 			const ep = endpoints[i]!;
 			if (shouldUseOsrm(step.mode)) {
-				coords = await fetchOsrmGeometry(
+				const enriched = await fetchOsrmGeometry(
 					ep.from,
 					ep.to,
 					osrmProfileForMode(step.mode),
 				);
-			} else if (shouldUseRailGeometry(step.mode)) {
-				coords = await fetchRailGeometry(ep.from, ep.to, step);
+				coords = saneEnrichedGeometry(enriched, ep.from, ep.to)
+					? enriched
+					: [ep.from, ep.to];
 			} else {
 				coords = [ep.from, ep.to];
 			}

@@ -35,9 +35,7 @@ export function useRouteSegments(
 				!step.polyline?.length &&
 				(step.mode === "walk" ||
 					step.mode === "cycle" ||
-					step.mode === "bus" ||
-					step.mode === "tube" ||
-					step.mode === "rail"),
+					step.mode === "bus"),
 		);
 
 		if (!needsEnrichment) {
