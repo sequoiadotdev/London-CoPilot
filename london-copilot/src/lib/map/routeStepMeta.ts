@@ -1,8 +1,8 @@
 import type { RouteStep } from '@contract/query.types'
-import { detectTubeLineColor, ROUTE_MODE_STYLE } from '@/lib/map/tflLineColors'
+import { colorForLineName, detectTubeLineColor, ROUTE_MODE_STYLE } from '@/lib/map/tflLineColors'
 
 const LINE_NAME_PATTERN =
-  /\b((?:Elizabeth|Victoria|Bakerloo|Central|Circle|District|Jubilee|Metropolitan|Northern|Piccadilly|Hammersmith(?:\s*&\s*City)?|Waterloo(?:\s*&\s*City)?|DLR|Overground|Tramlink)(?:\s+line)?)\b/i
+  /\b((?:Elizabeth|Victoria|Bakerloo|Central|Circle|District|Jubilee|Metropolitan|Northern|Piccadilly|Hammersmith(?:\s*&\s*City)?|Waterloo(?:\s*&\s*City)?|DLR|(?:London\s+)?Overground|Tramlink|Thameslink|Greater\s+Anglia|c2c|Southeastern|South\s+Western\s+Railway|Southern|Great\s+Northern|Gatwick\s+Express|LNER|London\s+North\s+Eastern\s+Railway|Avanti(?:\s+West\s+Coast)?|Chiltern(?:\s+Railways)?|GWR|Great\s+Western\s+Railway)(?:\s+line)?)\b/i
 
 const DIRECTION_PATTERN = /(?:towards?|to)\s+([^—–\-,\n]+)/i
 const STOPS_PATTERN = /(\d+)\s+stops?/i
@@ -43,8 +43,8 @@ function modeColor(mode: RouteStep['mode'], instruction: string, lineName: strin
   if (mode === 'walk') return ROUTE_MODE_STYLE.walk.color
   if (mode === 'bus') return ROUTE_MODE_STYLE.bus.color
   if (mode === 'cycle') return ROUTE_MODE_STYLE.cycle.color
-  if (mode === 'rail') return ROUTE_MODE_STYLE.rail.color
-  return detectTubeLineColor(lineName ?? instruction)
+  if (mode === 'rail') return colorForLineName(lineName ?? instruction, ROUTE_MODE_STYLE.rail.color)
+  return colorForLineName(lineName, detectTubeLineColor(instruction))
 }
 
 export function parseRouteStepMeta(step: RouteStep): RouteStepMeta {

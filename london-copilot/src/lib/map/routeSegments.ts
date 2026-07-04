@@ -146,7 +146,7 @@ function segmentFromCoords(
 	coords: LngLat[],
 ): RouteSegment | null {
 	if (coords.length < 2) return null;
-	const style = styleForStep(step.mode, step.instruction);
+	const style = styleForStep(step.mode, step.instruction, step.lineName);
 	const meta = parseRouteStepMeta(step);
 	return {
 		stepIndex,
