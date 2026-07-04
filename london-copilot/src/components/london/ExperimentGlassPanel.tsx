@@ -281,6 +281,17 @@ function ItinerarySlotCard({
   onToggle: () => void
   onSelectPlace?: (place: PlaceFocus | null) => void
 }) {
+  const focusPlace = () => {
+    onSelectPlace?.({
+      lat: slot.coordinates.lat,
+      lng: slot.coordinates.lng,
+      label: slot.place,
+      category: slot.description,
+      summary: slot.description,
+      kind: 'poi',
+    })
+  }
+
   return (
     <motion.div
       layout
@@ -292,14 +303,7 @@ function ItinerarySlotCard({
       <button
         type="button"
         onClick={() => {
-          onSelectPlace?.({
-            lat: slot.coordinates.lat,
-            lng: slot.coordinates.lng,
-            label: slot.place,
-            category: slot.description,
-            summary: slot.description,
-            kind: 'poi',
-          })
+          focusPlace()
           onToggle()
         }}
         className={cn('flex w-full gap-3 p-3 text-left', glassCardHover)}
@@ -327,6 +331,12 @@ function ItinerarySlotCard({
           <p className="mt-1 text-xs text-white/40">
             {slot.time} · {slot.duration} · {slot.cost}
           </p>
+          <p className="mt-2 flex items-center gap-1 text-[10px] text-[rgba(253,251,212,0.42)]">
+            <ChevronDown
+              className={cn('size-3 transition-transform', expanded && 'rotate-180')}
+            />
+            {expanded ? 'Show less' : 'Read more'}
+          </p>
         </div>
       </button>
 
@@ -338,18 +348,30 @@ function ItinerarySlotCard({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="space-y-2.5 border-t border-white/[0.06] px-3 pb-3 pt-2">
-              <p className="text-xs leading-relaxed text-white/50">{slot.description}</p>
-              <div className="flex flex-wrap gap-2 text-[10px] text-white/38">
-                <span className="inline-flex items-center gap-1">
+            <div className="space-y-3 border-t border-white/[0.06] px-3 pb-3 pt-2.5">
+              <p className="text-xs leading-relaxed text-white/58">
+                {slot.place} is a nearby {slot.description.toLowerCase()} option that fits this
+                itinerary window. It gives you enough time to get there, enjoy the stop, and still
+                keep the full plan within your budget.
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-[10px] text-white/42">
+                <span className="inline-flex items-center gap-1 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
                   <Clock className="size-3" />
                   {slot.duration}
                 </span>
-                <span className="inline-flex items-center gap-1">
+                <span className="inline-flex items-center gap-1 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
                   <Banknote className="size-3" />
                   {slot.cost}
                 </span>
               </div>
+              <button
+                type="button"
+                onClick={focusPlace}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(253,251,212,0.12)] bg-[rgba(253,251,212,0.05)] px-2.5 py-1.5 text-[10px] text-[rgba(253,251,212,0.62)] transition-colors hover:border-[rgba(253,251,212,0.24)] hover:text-[rgba(253,251,212,0.82)]"
+              >
+                <ExternalLink className="size-3" />
+                Show on map
+              </button>
             </div>
           </motion.div>
         ) : null}
@@ -460,6 +482,12 @@ function AnswerDetails({
   const [expandedSlot, setExpandedSlot] = useState<number | null>(null)
   const [expandedRoute, setExpandedRoute] = useState<number | null>(0)
   const [summaryExpanded, setSummaryExpanded] = useState(false)
+  const isItinerary = answer.parsed.type === 'itinerary'
+
+  useEffect(() => {
+    setExpandedSlot(answer.parsed.type === 'itinerary' ? 0 : null)
+    setSummaryExpanded(answer.parsed.type === 'itinerary')
+  }, [answer])
 
   return (
     <>
@@ -472,17 +500,19 @@ function AnswerDetails({
           <p
             className={cn(
               'text-sm leading-relaxed text-white/58',
-              !summaryExpanded && 'line-clamp-3',
+              !summaryExpanded && !isItinerary && 'line-clamp-3',
             )}
           >
             {answer.summary}
           </p>
-          <p className="mt-2 flex items-center gap-1 text-[10px] text-[rgba(253,251,212,0.4)]">
-            <ChevronDown
-              className={cn('size-3 transition-transform', summaryExpanded && 'rotate-180')}
-            />
-            {summaryExpanded ? 'Show less' : 'Read more'}
-          </p>
+          {!isItinerary ? (
+            <p className="mt-2 flex items-center gap-1 text-[10px] text-[rgba(253,251,212,0.4)]">
+              <ChevronDown
+                className={cn('size-3 transition-transform', summaryExpanded && 'rotate-180')}
+              />
+              {summaryExpanded ? 'Show less' : 'Read more'}
+            </p>
+          ) : null}
         </button>
       ) : null}
 
